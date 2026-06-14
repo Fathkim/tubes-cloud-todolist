@@ -4,5 +4,5 @@ COPY package*.json ./
 RUN npm install --omit=dev
 COPY . .
 RUN mkdir -p uploads
-EXPOSE 5000
+EXPOSE 5001
 CMD ["node", "server.js"]
