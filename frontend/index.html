@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pencatatan Tugas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        #toast-container { position:fixed; bottom:1.5rem; right:1.5rem; z-index:9999; }
+    </style>
+</head>
+<body class="bg-light">
+
+<div id="toast-container"></div>
+<div id="connectionError" class="alert alert-warning d-none m-3">
+    Backend tidak dapat dihubungi.
+    <a href="#" onclick="fetchTasks(); return false;">Coba lagi</a>
+</div>
+
+<div class="container py-5" style="max-width: 900px;">
+    <h2 class="text-center mb-4">Pencatatan Tugas</h2>
+    <div class="card shadow-sm mb-5"><div class="card-body">
+        <form id="taskForm" class="row g-3">
+            <div class="col-md-8">
+                <input type="text" id="taskName" class="form-control" placeholder="Judul Tugas / Judul Catatan..." required>
+            </div>
+            <div class="col-md-4">
+                <select id="taskCategory" class="form-select">
+                    <option value="Kuliah">Kuliah</option>
+                    <option value="Praktikum">Praktikum</option>
+                    <option value="Pribadi" selected>Pribadi</option>
+                    <option value="Proyek">Proyek</option>
+                </select>
+            </div>
+            <div class="col-md-12">
+                <textarea id="taskDesc" class="form-control" rows="2" placeholder="Tulis isi catatan lengkap di sini... (Opsional)"></textarea>
+            </div>
+            <div class="col-md-4">
+                <select id="taskPriority" class="form-select">
+                    <option value="Rendah">Prioritas: Rendah</option>
+                    <option value="Sedang" selected>Prioritas: Sedang</option>
+                    <option value="Tinggi">Prioritas: Tinggi</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <input type="date" id="taskDueDate" class="form-control" title="Tenggat Waktu">
+            </div>
+            <div class="col-md-4">
+                <input type="file" id="taskImage" class="form-control" accept="image/*" title="Sisipkan Gambar">
+            </div>
+            <div class="col-md-12">
+                <button type="submit" id="submitBtn" class="btn btn-primary w-100 fw-bold">Simpan ke Dashboard</button>
+            </div>
+        </form>
+    </div></div>
+
+    <div class="mb-4">
+        <h5 class="text-danger fw-bold border-bottom pb-2">PRIORITAS TINGGI</h5>
+        <div class="card shadow-sm"><ul id="listTinggi" class="list-group list-group-flush"></ul></div>
+    </div>
+    <div class="mb-4">
+        <h5 class="fw-bold border-bottom pb-2" style="color:#d97706">PRIORITAS SEDANG</h5>
+        <div class="card shadow-sm"><ul id="listSedang" class="list-group list-group-flush"></ul></div>
+    </div>
+    <div class="mb-4">
+        <h5 class="text-success fw-bold border-bottom pb-2">PRIORITAS RENDAH</h5>
+        <div class="card shadow-sm"><ul id="listRendah" class="list-group list-group-flush"></ul></div>
+    </div>
+</div>
+
+<!-- Modal Edit -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-lg"><div class="modal-content">
+        <div class="modal-header bg-primary text-white">
+            <h5 class="modal-title">Edit Catatan & Tugas</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <form id="editForm"><div class="modal-body">
+            <input type="hidden" id="editId">
+            <div class="mb-3"><label class="form-label fw-bold">Judul</label>
+                <input type="text" id="editName" class="form-control" required></div>
+            <div class="row g-3 mb-3">
+                <div class="col-md-6"><label class="form-label fw-bold">Kategori</label>
+                    <select id="editCategory" class="form-select">
+                        <option value="Kuliah">Kuliah</option>
+                        <option value="Praktikum">Praktikum</option>
+                        <option value="Pribadi">Pribadi</option>
+                        <option value="Proyek">Proyek</option>
+                    </select></div>
+                <div class="col-md-6"><label class="form-label fw-bold">Prioritas</label>
+                    <select id="editPriority" class="form-select">
+                        <option value="Rendah">Rendah</option>
+                        <option value="Sedang">Sedang</option>
+                        <option value="Tinggi">Tinggi</option>
+                    </select></div>
+            </div>
+            <div class="mb-3"><label class="form-label fw-bold">Catatan / Notes</label>
+                <textarea id="editDesc" class="form-control" rows="4"></textarea></div>
+            <div class="mb-3"><label class="form-label fw-bold">Tenggat Waktu</label>
+                <input type="date" id="editDueDate" class="form-control"></div>
+            <div class="mb-3 p-3 bg-light rounded border">
+                <label class="form-label fw-bold d-block">Manajemen Gambar</label>
+                <small class="text-muted d-block mb-2">Pilih file baru jika ingin mengganti gambar saat ini.</small>
+                <input type="file" id="editImage" class="form-control mb-2" accept="image/*">
+                <div class="form-check mt-2" id="removeImgBlock">
+                    <input class="form-check-input" type="checkbox" id="removeImageCheck">
+                    <label class="form-check-label text-danger fw-bold">Hapus gambar</label>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+            <button type="submit" id="editSubmitBtn" class="btn btn-primary fw-bold">Simpan Perubahan</button>
+        </div></form>
+    </div></div>
+</div>
+
+<script>
+    const BACKEND_BASE = 'http://localhost:5001';
+    const API_URL = `${BACKEND_BASE}/tasks`;
+    let globalTasks = [];
+    let editModalInstance;
+
+    function showToast(message, type = 'success') {
+        const id = `toast-${Date.now()}`;
+        const bg = type === 'success' ? 'bg-success' : 'bg-danger';
+        document.getElementById('toast-container').insertAdjacentHTML('beforeend', `
+            <div id="${id}" class="toast align-items-center text-white ${bg} border-0 mb-2 show">
+                <div class="d-flex">
+                    <div class="toast-body">${message}</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto"></button>
+                </div>
+            </div>`);
+        setTimeout(() => document.getElementById(id)?.remove(), 3500);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        editModalInstance = new bootstrap.Modal(document.getElementById('editModal'));
+        fetchTasks();
+    });
+
+    async function fetchTasks() {
+        try {
+            const res = await fetch(API_URL);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            globalTasks = await res.json();
+            document.getElementById('connectionError').classList.add('d-none');
+            renderListBlock('listTinggi', globalTasks.filter(t => t.priority === 'Tinggi'), 'danger');
+            renderListBlock('listSedang', globalTasks.filter(t => t.priority === 'Sedang'), 'warning');
+            renderListBlock('listRendah', globalTasks.filter(t => t.priority === 'Rendah'), 'success');
+        } catch (err) {
+            document.getElementById('connectionError').classList.remove('d-none');
+        }
+    }
+
+    function renderListBlock(elementId, tasks, badgeColor) {
+        const listObj = document.getElementById(elementId);
+        listObj.innerHTML = '';
+        if (tasks.length === 0) {
+            listObj.innerHTML = `<li class="list-group-item text-center text-muted py-3" style="font-size:0.9rem;">Belum ada catatan di kelompok prioritas ini</li>`;
+            return;
+        }
+        tasks.forEach(t => {
+            const isCompleted = t.status === 'completed';
+            const dateObj = new Date(t.created_at);
+            const timeString = dateObj.toLocaleString('id-ID', {
+                day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'
+            });
+            const descHtml = t.description
+                ? `<div class="mt-2 p-2 bg-white rounded border text-secondary" style="font-size:0.95rem;white-space:pre-line;">${t.description}</div>` : '';
+            const imgHtml = t.image_path
+                ? `<div class="mt-2"><a href="${BACKEND_BASE}${t.image_path}" target="_blank">
+                   <img src="${BACKEND_BASE}${t.image_path}" class="img-thumbnail shadow-sm"
+                   style="max-height:140px;" onerror="this.style.display='none'"></a></div>` : '';
+            listObj.innerHTML += `
+                <li class="list-group-item d-flex justify-content-between align-items-start py-3 ${isCompleted ? 'bg-light' : ''}">
+                    <div class="d-flex align-items-start gap-3 w-75">
+                        <input class="form-check-input mt-1" type="checkbox"
+                            ${isCompleted ? 'checked' : ''}
+                            onchange="toggleStatus(${t.id}, '${t.status}')">
+                        <div class="w-100">
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <strong class="${isCompleted ? 'text-decoration-line-through text-muted' : ''}"
+                                    style="font-size:1.15rem;">${t.task_name}</strong>
+                                <span class="badge bg-secondary">${t.category}</span>
+                                <span class="badge bg-${badgeColor}">${t.priority}</span>
+                            </div>
+                            ${descHtml}${imgHtml}
+                            <div class="mt-2 text-muted" style="font-size:0.8rem;">
+                                <span>🕒 Dicatat: ${timeString} WIB</span>
+                                ${t.due_date ? `<span class="ms-3">Batas Waktu: ${t.due_date.split('T')[0]}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="btn-group ms-2 flex-shrink-0">
+                        <button class="btn btn-sm btn-outline-primary" onclick="openEditModal(${t.id})">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteTask(${t.id})">Hapus</button>
+                    </div>
+                </li>`;
+        });
+    }
+
+    document.getElementById('taskForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true; btn.textContent = 'Menyimpan...';
+        const formData = new FormData();
+        formData.append('task_name', document.getElementById('taskName').value);
+        formData.append('description', document.getElementById('taskDesc').value);
+        formData.append('category', document.getElementById('taskCategory').value);
+        formData.append('priority', document.getElementById('taskPriority').value);
+        formData.append('due_date', document.getElementById('taskDueDate').value);
+        const imageFile = document.getElementById('taskImage').files[0];
+        if (imageFile) formData.append('image', imageFile);
+        try {
+            const res = await fetch(API_URL, { method: 'POST', body: formData });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            document.getElementById('taskForm').reset();
+            showToast('Tugas berhasil ditambahkan!');
+            fetchTasks();
+        } catch (err) { showToast('Gagal menyimpan tugas.', 'error'); }
+        finally { btn.disabled = false; btn.textContent = 'Simpan ke Dashboard'; }
+    });
+
+    function openEditModal(id) {
+        const t = globalTasks.find(item => item.id === id);
+        if (!t) return;
+        document.getElementById('editId').value = t.id;
+        document.getElementById('editName').value = t.task_name;
+        document.getElementById('editCategory').value = t.category;
+        document.getElementById('editPriority').value = t.priority;
+        document.getElementById('editDesc').value = t.description || '';
+        document.getElementById('editDueDate').value = t.due_date ? t.due_date.split('T')[0] : '';
+        document.getElementById('editImage').value = '';
+        const removeBlock = document.getElementById('removeImgBlock');
+        const removeCheck = document.getElementById('removeImageCheck');
+        removeCheck.checked = false;
+        removeBlock.style.display = t.image_path ? 'block' : 'none';
+        editModalInstance.show();
+    }
+
+    document.getElementById('editForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('editId').value;
+        const btn = document.getElementById('editSubmitBtn');
+        btn.disabled = true; btn.textContent = 'Menyimpan...';
+        const formData = new FormData();
+        formData.append('task_name', document.getElementById('editName').value);
+        formData.append('category', document.getElementById('editCategory').value);
+        formData.append('priority', document.getElementById('editPriority').value);
+        formData.append('description', document.getElementById('editDesc').value);
+        formData.append('due_date', document.getElementById('editDueDate').value);
+        formData.append('remove_image', document.getElementById('removeImageCheck').checked);
+        const newImageFile = document.getElementById('editImage').files[0];
+        if (newImageFile) formData.append('image', newImageFile);
+        try {
+            const res = await fetch(`${API_URL}/edit/${id}`, { method: 'PUT', body: formData });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            editModalInstance.hide();
+            showToast('Perubahan berhasil disimpan!');
+            fetchTasks();
+        } catch (err) { showToast('Gagal menyimpan perubahan.', 'error'); }
+        finally { btn.disabled = false; btn.textContent = 'Simpan Perubahan'; }
+    });
+
+    async function toggleStatus(id, currentStatus) {
+        const newStatus = currentStatus === 'pending' ? 'completed' : 'pending';
+        try {
+            const res = await fetch(`${API_URL}/${id}`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: newStatus })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            fetchTasks();
+        } catch (err) { showToast('Gagal update status.', 'error'); fetchTasks(); }
+    }
+
+    async function deleteTask(id) {
+        if (!confirm('Yakin ingin menghapus catatan ini secara permanen?')) return;
+        try {
+            const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            showToast('Tugas berhasil dihapus.');
+            fetchTasks();
+        } catch (err) { showToast('Gagal menghapus tugas.', 'error'); }
+    }
+</script>
+</body>
+</html>
